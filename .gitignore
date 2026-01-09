@@ -1,0 +1,12 @@
+﻿# Python
+__pycache__/
+*.pyc
+.venv/
+
+# DB files
+*.db
+server/leaderboard.db
+
+# OS/IDE
+.DS_Store
+.vscode/
