@@ -1,12 +1,9 @@
-﻿# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.env
 .venv/
-
-# DB files
+venv/
+leaderboard.db
 *.db
-server/leaderboard.db
-
-# OS/IDE
-.DS_Store
-.vscode/
