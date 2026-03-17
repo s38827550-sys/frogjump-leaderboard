@@ -3,37 +3,21 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)
 ![SQLite](https://img.shields.io/badge/Database-SQLite-003B57.svg)
 
-Frog Jump Game의 점수를 기록하고 순위를 제공하는 백엔드 API 서버입니다.
+Frog Jump Game의 점수를 기록하고 순위를 관리하는 백엔드 API 서버입니다.
 
-## 🛠 기술 스택
-- **Framework**: FastAPI (Python)
-- **Database**: SQLite (WAL 모드 지원으로 동시성 향상)
-- **Deployment**: OCI, Heroku, Local 등 지원
-
-## 🚀 서버 실행 방법
-
-### 1. 가상환경 설정 및 라이브러리 설치
-```bash
-python -m venv .venv
-source .venv/Scripts/activate  # Windows
-pip install -r requirements.txt
-```
-
-### 2. 서버 실행
-```bash
-cd server
-uvicorn app:app --reload --host 0.0.0.1 --port 8000
-```
+## 🚀 핵심 로직
+- **최고 점수 갱신 (Upsert)**: 동일한 닉네임으로 점수 등록 시, 기존 기록보다 높은 점수일 때만 데이터베이스를 업데이트합니다.
+- **동시성 최적화**: SQLite의 `WAL(Write-Ahead Logging)` 모드를 사용하여 여러 사용자가 동시에 점수를 등록해도 안전하게 처리합니다.
+- **CORS 완화**: 모든 도메인(`*`)에서의 접근을 허용하여 Vercel 등 외부 웹 서비스와 원활하게 통신합니다.
 
 ## 🔌 API Endpoints
+- `POST /scores`: 점수 등록 (nickname, score) - 최고점일 때만 갱신됨.
+- `GET /leaderboard?limit=50`: 실시간 상위 순위 목록 조회.
+- `GET /health`: 서버 상태 및 DB 연결 확인.
 
-- `GET /leaderboard?limit=50`: 상위 순위 목록 조회
-- `POST /scores`: 새로운 점수 등록 (nickname, score 필요)
-- `GET /health`: 서버 상태 확인
-- `GET /docs`: Swagger API 문서 확인
-
-## 📦 데이터베이스 구조
-- **Table**: `user_best`
-  - `nickname` (TEXT, PK): 사용자 식별자
-  - `score` (INTEGER): 최고 기록
-  - `updated_at` (TEXT): 기록 갱신 시간
+## 📦 설치 및 실행
+```bash
+pip install -r requirements.txt
+cd server
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
