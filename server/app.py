@@ -1,4 +1,4 @@
-# app.py (PostgreSQL / Supabase Version)
+# app.py (Pydantic v2.6+ & Supabase Optimized)
 from __future__ import annotations
 import os
 import logging
@@ -12,14 +12,14 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# .env 파일 로드
+# .env 파일 로드 (로컬 테스트용)
 load_dotenv()
 
-# 로깅 설정
+# 로깅 설정 (Render 콘솔에서 확인 가능)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FrogJump")
 
-# DATABASE_URL 확인 및 변환
+# DATABASE_URL 확인 및 변환 (postgres -> postgresql)
 def get_db_url():
     url = os.getenv("DATABASE_URL") or os.getenv("DB_URL")
     if url and url.startswith("postgres://"):
@@ -30,7 +30,10 @@ DATABASE_URL = get_db_url()
 
 def get_db_conn():
     if not DATABASE_URL:
+        logger.error("❌ DATABASE_URL is missing! Please set it in Render Environment.")
         raise ConnectionError("DATABASE_URL is missing.")
+    
+    # Supabase 안정성을 위해 sslmode=require 및 타임아웃 10초 설정
     return psycopg2.connect(
         DATABASE_URL, 
         cursor_factory=RealDictCursor, 
@@ -42,6 +45,7 @@ def init_db():
     try:
         with get_db_conn() as conn:
             with conn.cursor() as cur:
+                # public 스키마 명시
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS public.user_best (
                         nickname TEXT PRIMARY KEY,
@@ -51,9 +55,9 @@ def init_db():
                 """)
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_user_best_score_updated ON public.user_best (score DESC, updated_at ASC)")
             conn.commit()
-        logger.info("Database schema verified.")
+        logger.info("✅ Database connected and initialized.")
     except Exception as e:
-        logger.error(f"Database init failed: {e}")
+        logger.error(f"❌ Database connection failed: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,7 +67,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FrogJump API", lifespan=lifespan)
 
-# CORS 설정
+# CORS 설정 (Vercel 웹 앱과의 통신 허용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -72,18 +76,27 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Pydantic v2 전용 모델 정의
 class ScoreIn(BaseModel):
-    nickname: str = Field(..., min_length=1, max_length=16)
-    score: int = Field(..., ge=0, le=999999)
+    # Field(..., ...)를 사용하여 필수 필드임을 명시
+    nickname: str = Field(..., min_length=1, max_length=16, description="User Nickname")
+    score: int = Field(..., ge=0, le=999999, description="Game Score")
 
+    # 닉네임 공백 검사 (Pydantic v2 최신 validator)
     @field_validator('nickname')
     @classmethod
-    def nickname_must_not_be_empty(cls, v: str) -> str:
-        if not v or not v.strip():
+    def clean_nickname(cls, v: str) -> str:
+        cleaned = v.strip()
+        if not cleaned:
             raise ValueError('Nickname cannot be empty')
-        return v.strip()
+        return cleaned
 
-    model_config = ConfigDict(populate_by_name=True, str_strip_whitespace=True)
+    # Pydantic v2 전용 설정
+    model_config = ConfigDict(
+        populate_by_name=True,
+        str_strip_whitespace=True,
+        extra='ignore' # 예상치 못한 필드는 무시
+    )
 
 @app.get("/", include_in_schema=False)
 async def root():
@@ -109,8 +122,8 @@ async def post_score(payload: ScoreIn):
         best_score = row.get("score") if row else payload.score
         return {"ok": True, "best": int(best_score)}
     except Exception as e:
-        logger.error(f"Post score error: {e}")
-        raise HTTPException(status_code=500, detail="Database operation failed")
+        logger.error(f"❌ Post score error: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @app.get("/leaderboard")
 async def get_leaderboard(limit: int = 50):
@@ -127,7 +140,7 @@ async def get_leaderboard(limit: int = 50):
                 rows = cur.fetchall()
         return [dict(r) for r in rows]
     except Exception as e:
-        logger.error(f"Leaderboard query failed: {e}")
+        logger.error(f"❌ Leaderboard query failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch leaderboard")
 
 @app.get("/health")
@@ -144,5 +157,5 @@ async def health():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error: {exc}")
-    return JSONResponse(status_code=500, content={"detail": str(exc)})
+    logger.error(f"🚨 Unhandled system error: {exc}")
+    return JSONResponse(status_code=500, content={"detail": "Critical server error"})
