@@ -3,7 +3,6 @@ import sys
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# app.py와 동일한 URL 로직 사용
 def get_db_url():
     url = os.getenv("DATABASE_URL")
     if url and url.startswith("postgres://"):
@@ -17,11 +16,12 @@ def check_db():
         print("❌ ERROR: DATABASE_URL is not set.")
         return
 
-    print(f"🔍 Connecting to DB (URL starts with: {DATABASE_URL[:20]}...)")
+    print(f"🔍 Connecting to Supabase/PostgreSQL...")
     try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=5)
+        # sslmode='require' 추가
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=10, sslmode='require')
         with conn.cursor() as cur:
-            # 1. 테이블 존재 여부 확인
+            # public 스키마 명시
             cur.execute("""
                 SELECT table_name 
                 FROM information_schema.tables 
@@ -31,19 +31,17 @@ def check_db():
             print(f"✅ TABLES: {tables}")
 
             if 'user_best' in tables:
-                # 2. 레코드 수 확인
-                cur.execute("SELECT COUNT(*) as count FROM user_best")
+                cur.execute("SELECT COUNT(*) as count FROM public.user_best")
                 count = cur.fetchone()['count']
-                print(f"✅ TOTAL ROWS: {count}")
+                print(f"✅ TOTAL ROWS IN public.user_best: {count}")
 
-                # 3. 상위 5개 미리보기
-                cur.execute("SELECT nickname, score FROM user_best ORDER BY score DESC LIMIT 5")
+                cur.execute("SELECT nickname, score FROM public.user_best ORDER BY score DESC LIMIT 5")
                 rows = cur.fetchall()
                 print("--- TOP 5 ---")
                 for r in rows:
                     print(f"- {r['nickname']}: {r['score']}")
             else:
-                print("⚠️ WARNING: 'user_best' table not found.")
+                print("⚠️ WARNING: 'user_best' table not found in public schema.")
             
         conn.close()
     except Exception as e:
