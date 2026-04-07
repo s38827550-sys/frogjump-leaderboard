@@ -7,7 +7,10 @@ __pycache__/
 server/__pycache__/
 
 # 데이터베이스 (가장 중요!)
-server/leaderboard.db
+# .gitignore 파일 내용
+*.db
+server/*.db
+**/leaderboard.db
 *.sqlite3
 
 # 환경 변수 (혹시 나중에 .env를 쓰게 된다면)
