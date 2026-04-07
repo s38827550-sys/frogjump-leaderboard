@@ -1,22 +1,17 @@
 # 가상환경
 .venv/
 venv/
-env/
 
-# 환경변수
-.env
+# 파이썬 캐시
+__pycache__/
+server/__pycache__/
 
-# DB 파일
-*.db
-*.sqlite
+# 데이터베이스 (가장 중요!)
+leaderboard.db
 *.sqlite3
 
-# Python 캐시
-__pycache__/
-*.pyc
-*.pyo
+# 환경 변수 (혹시 나중에 .env를 쓰게 된다면)
+.env
 
-# 에디터 설정
-.cursor/
-.vscode/
-.idea/
+# 배포 관련 로그
+*.log
